@@ -1,5 +1,5 @@
-# Catesis
-Like `cat` but dumps the data into Amazon Kinesis
+# c2k - cat 2 kinesis
+Like `cat` but dumps the data into Amazon Kinesis.
 
 ### Usage
-`catesis access.log`
+`c2k access.log error.log`
