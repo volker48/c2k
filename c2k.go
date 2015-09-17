@@ -66,8 +66,9 @@ func uploadFile(fileName, delimiter, streamName, partitionKey string, svc *kines
 		return
 	}
 	defer handle.Close()
-	records := make([]*kinesis.PutRecordsRequestEntry, 0)
+	records := make([]*kinesis.PutRecordsRequestEntry, 500)
 	rdr := bufio.NewReader(handle)
+	i := 0
 	for {
 		line, err := rdr.ReadBytes([]byte(delimiter)[0])
 		if err == io.EOF {
@@ -77,17 +78,34 @@ func uploadFile(fileName, delimiter, streamName, partitionKey string, svc *kines
 			log.Printf(incompleteRead, fileName)
 			break
 		}
-		records = append(records, &kinesis.PutRecordsRequestEntry{Data: line, PartitionKey: &partitionKey})
+		records[i] = &kinesis.PutRecordsRequestEntry{Data: line, PartitionKey: &partitionKey}
+		if i == 499 {
+			shipAndCheck(svc, streamName, records)
+			i = 0
+		} else {
+			i++
+		}
 	}
-	putRecordsInput := &kinesis.PutRecordsInput{Records: records, StreamName: &streamName}
-	putRecordsOutput, err := svc.PutRecords(putRecordsInput)
+	if i != 0 {
+		shipAndCheck(svc, streamName, records[:i])
+	}
+}
+
+func shipAndCheck(svc *kinesis.Kinesis, streamName string, records []*kinesis.PutRecordsRequestEntry){
+	putRecordsOutput, err := shipRecords(svc, streamName, records)
 	if err != nil {
 		log.Fatal("Error during put records ", err)
 	}
 
 	if *putRecordsOutput.FailedRecordCount > 0 {
+		//TODO: Decide what to do with failures. Either write failures to a new failures file or retry?
 		log.Printf("%d records failed to upload", putRecordsOutput.FailedRecordCount)
 	}
 
 	log.Printf("Successfully put %d records", int64(len(putRecordsOutput.Records)) - *putRecordsOutput.FailedRecordCount)
+}
+
+func shipRecords(svc *kinesis.Kinesis, streamName string, records []*kinesis.PutRecordsRequestEntry) (*kinesis.PutRecordsOutput, error) {
+	putRecordsInput := &kinesis.PutRecordsInput{Records: records, StreamName: &streamName}
+	return svc.PutRecords(putRecordsInput)
 }
