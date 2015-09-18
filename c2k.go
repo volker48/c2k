@@ -1,27 +1,28 @@
 package main
 
 import (
-	"os"
 	"bufio"
 	"flag"
+	"github.com/volker48/c2k/Godeps/_workspace/src/github.com/aws/aws-sdk-go/aws"
+	"github.com/volker48/c2k/Godeps/_workspace/src/github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/volker48/c2k/Godeps/_workspace/src/github.com/aws/aws-sdk-go/service/kinesis"
 	"io"
 	"log"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/kinesis"
-	"github.com/aws/aws-sdk-go/aws/credentials"
+	"os"
 )
+
 const (
-	defaultDelimiter = "\n"
-	delimiterUsage = "Delimiter to split on (defaults to newline)"
-	defaultProfile = "default"
-	profileUsage = "AWS Profile name to use for authentication"
+	defaultDelimiter    = "\n"
+	delimiterUsage      = "Delimiter to split on (defaults to newline)"
+	defaultProfile      = "default"
+	profileUsage        = "AWS Profile name to use for authentication"
 	defaultPartitionKey = "1"
-	partitionKeyUsage = "Partition key"
-	defaultRegion = "us-east-1"
-	regionUsage = "AWS region, defaults to us-east-1"
-	streamNameUsage = "Stream name to put data"
-	incompleteRead = "c2k: incomplete read of stream"
-	noSuchFile = "c2k: %s: no such file"
+	partitionKeyUsage   = "Partition key"
+	defaultRegion       = "us-east-1"
+	regionUsage         = "AWS region, defaults to us-east-1"
+	streamNameUsage     = "Stream name to put data"
+	incompleteRead      = "c2k: incomplete read of stream"
+	noSuchFile          = "c2k: %s: no such file"
 )
 
 type Options struct {
@@ -33,7 +34,7 @@ func main() {
 
 	svc := createService(opts.Profile, opts.Region)
 
-	for _, fileName := range (flag.Args()) {
+	for _, fileName := range flag.Args() {
 		uploadFile(fileName, opts, svc)
 	}
 }
@@ -46,15 +47,15 @@ func createService(profile, region string) *kinesis.Kinesis {
 func parseArgs() Options {
 	opts := Options{}
 	flag.StringVar(&opts.Delimiter, "delimiter", defaultDelimiter, delimiterUsage)
-	flag.StringVar(&opts.Delimiter, "d", defaultDelimiter, delimiterUsage + " (short)")
+	flag.StringVar(&opts.Delimiter, "d", defaultDelimiter, delimiterUsage+" (short)")
 	flag.StringVar(&opts.PartitionKey, "partitionKey", defaultPartitionKey, partitionKeyUsage)
-	flag.StringVar(&opts.PartitionKey, "pk", defaultPartitionKey, partitionKeyUsage + " (short)")
+	flag.StringVar(&opts.PartitionKey, "pk", defaultPartitionKey, partitionKeyUsage+" (short)")
 	flag.StringVar(&opts.Profile, "profile", defaultProfile, profileUsage)
-	flag.StringVar(&opts.Profile, "p", defaultProfile, profileUsage + " (short)")
+	flag.StringVar(&opts.Profile, "p", defaultProfile, profileUsage+" (short)")
 	flag.StringVar(&opts.Region, "region", defaultRegion, regionUsage)
-	flag.StringVar(&opts.Region, "r", defaultRegion, regionUsage + " (short)")
+	flag.StringVar(&opts.Region, "r", defaultRegion, regionUsage+" (short)")
 	flag.StringVar(&opts.StreamName, "streamName", "", streamNameUsage)
-	flag.StringVar(&opts.StreamName, "s", "", streamNameUsage + " (short)")
+	flag.StringVar(&opts.StreamName, "s", "", streamNameUsage+" (short)")
 	flag.Parse()
 	if opts.StreamName == "" {
 		log.Fatal("streamName is a required parameter")

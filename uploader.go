@@ -1,25 +1,25 @@
 package main
 
 import (
-	"github.com/aws/aws-sdk-go/service/kinesis"
+	"github.com/volker48/c2k/Godeps/_workspace/src/github.com/aws/aws-sdk-go/service/kinesis"
 	"log"
 )
 
 const MaxPutIdx = 499
 
 type Uploader struct {
-	records []*kinesis.PutRecordsRequestEntry
+	records  []*kinesis.PutRecordsRequestEntry
 	position int
-	opts Options
-	svc *kinesis.Kinesis
+	opts     Options
+	svc      *kinesis.Kinesis
 }
 
 func NewUploader(svc *kinesis.Kinesis, opts Options) *Uploader {
 	return &Uploader{
-		records: make([]*kinesis.PutRecordsRequestEntry, 500),
+		records:  make([]*kinesis.PutRecordsRequestEntry, 500),
 		position: 0,
-		opts: opts,
-		svc: svc,
+		opts:     opts,
+		svc:      svc,
 	}
 }
 
@@ -41,7 +41,6 @@ func (upldr *Uploader) Flush() {
 	upldr.shipAndCheck()
 }
 
-
 func (upldr *Uploader) shipAndCheck() {
 	var records []*kinesis.PutRecordsRequestEntry
 	if upldr.position == MaxPutIdx {
@@ -60,5 +59,5 @@ func (upldr *Uploader) shipAndCheck() {
 		log.Printf("%d records failed to upload", putRecordsOutput.FailedRecordCount)
 	}
 
-	log.Printf("Successfully put %d records", int64(len(putRecordsOutput.Records)) - *putRecordsOutput.FailedRecordCount)
+	log.Printf("Successfully put %d records", int64(len(putRecordsOutput.Records))-*putRecordsOutput.FailedRecordCount)
 }
