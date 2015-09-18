@@ -1,4 +1,5 @@
 package main
+
 import (
 	"os"
 	"bufio"
@@ -73,10 +74,9 @@ func uploadFile(fileName string, opts Options, svc *kinesis.Kinesis) {
 }
 
 func putFromReader(rdr *bufio.Reader, opts Options, svc *kinesis.Kinesis) {
-	records := make([]*kinesis.PutRecordsRequestEntry, 500)
-	i := 0
+	uploader := NewUploader(svc, opts)
 	for {
-		line, err := rdr.ReadBytes([]byte(opts.Delimiter)[0])
+		data, err := rdr.ReadBytes([]byte(opts.Delimiter)[0])
 		if err == io.EOF {
 			break
 		}
@@ -84,34 +84,7 @@ func putFromReader(rdr *bufio.Reader, opts Options, svc *kinesis.Kinesis) {
 			log.Printf(incompleteRead)
 			break
 		}
-		records[i] = &kinesis.PutRecordsRequestEntry{Data: line, PartitionKey: &opts.PartitionKey}
-		if i == 499 {
-			shipAndCheck(svc, opts.StreamName, records)
-			i = 0
-		} else {
-			i++
-		}
+		uploader.Upload(data)
 	}
-	if i != 0 {
-		shipAndCheck(svc, opts.StreamName, records[:i])
-	}
-}
-
-func shipAndCheck(svc *kinesis.Kinesis, streamName string, records []*kinesis.PutRecordsRequestEntry) {
-	putRecordsOutput, err := shipRecords(svc, streamName, records)
-	if err != nil {
-		log.Fatal("Error during put records ", err)
-	}
-
-	if *putRecordsOutput.FailedRecordCount > 0 {
-		//TODO: Decide what to do with failures. Either write failures to a new failures file or retry?
-		log.Printf("%d records failed to upload", putRecordsOutput.FailedRecordCount)
-	}
-
-	log.Printf("Successfully put %d records", int64(len(putRecordsOutput.Records)) - *putRecordsOutput.FailedRecordCount)
-}
-
-func shipRecords(svc *kinesis.Kinesis, streamName string, records []*kinesis.PutRecordsRequestEntry) (*kinesis.PutRecordsOutput, error) {
-	putRecordsInput := &kinesis.PutRecordsInput{Records: records, StreamName: &streamName}
-	return svc.PutRecords(putRecordsInput)
+	uploader.Flush()
 }
