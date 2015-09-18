@@ -1,4 +1,5 @@
 package main
+
 import (
 	"os"
 	"bufio"
@@ -19,20 +20,21 @@ const (
 	defaultRegion = "us-east-1"
 	regionUsage = "AWS region, defaults to us-east-1"
 	streamNameUsage = "Stream name to put data"
-	incompleteRead = "c2k: %s: incomplete read"
+	incompleteRead = "c2k: incomplete read of stream"
 	noSuchFile = "c2k: %s: no such file"
 )
 
-//var delimiter, profile, region, streamName, partitionKey string
+type Options struct {
+	Delimiter, Profile, Region, StreamName, PartitionKey string
+}
 
 func main() {
-	delimiter, profile, region, streamName, partitionKey := parseArgs()
+	opts := parseArgs()
 
-	svc := createService(profile, region)
-
+	svc := createService(opts.Profile, opts.Region)
 
 	for _, fileName := range (flag.Args()) {
-		uploadFile(fileName, delimiter, streamName, partitionKey, svc)
+		uploadFile(fileName, opts, svc)
 	}
 }
 
@@ -41,53 +43,48 @@ func createService(profile, region string) *kinesis.Kinesis {
 	return kinesis.New(&aws.Config{Region: aws.String(region), Credentials: creds})
 }
 
-func parseArgs() (delimiter, profile, region, streamName, partitionKey string) {
-	flag.StringVar(&delimiter, "delimiter", defaultDelimiter, delimiterUsage)
-	flag.StringVar(&delimiter, "d", defaultDelimiter, delimiterUsage + " (short)")
-	flag.StringVar(&partitionKey, "partitionKey", defaultPartitionKey, partitionKeyUsage)
-	flag.StringVar(&partitionKey, "pk", defaultPartitionKey, partitionKeyUsage + " (short)")
-	flag.StringVar(&profile, "profile", defaultProfile, profileUsage)
-	flag.StringVar(&profile, "p", defaultProfile, profileUsage + " (short)")
-	flag.StringVar(&region, "region", defaultRegion, regionUsage)
-	flag.StringVar(&region, "r", defaultRegion, regionUsage + " (short)")
-	flag.StringVar(&streamName, "streamName", "", streamNameUsage)
-	flag.StringVar(&streamName, "s", "", streamNameUsage + " (short)")
+func parseArgs() Options {
+	opts := Options{}
+	flag.StringVar(&opts.Delimiter, "delimiter", defaultDelimiter, delimiterUsage)
+	flag.StringVar(&opts.Delimiter, "d", defaultDelimiter, delimiterUsage + " (short)")
+	flag.StringVar(&opts.PartitionKey, "partitionKey", defaultPartitionKey, partitionKeyUsage)
+	flag.StringVar(&opts.PartitionKey, "pk", defaultPartitionKey, partitionKeyUsage + " (short)")
+	flag.StringVar(&opts.Profile, "profile", defaultProfile, profileUsage)
+	flag.StringVar(&opts.Profile, "p", defaultProfile, profileUsage + " (short)")
+	flag.StringVar(&opts.Region, "region", defaultRegion, regionUsage)
+	flag.StringVar(&opts.Region, "r", defaultRegion, regionUsage + " (short)")
+	flag.StringVar(&opts.StreamName, "streamName", "", streamNameUsage)
+	flag.StringVar(&opts.StreamName, "s", "", streamNameUsage + " (short)")
 	flag.Parse()
-	if streamName == "" {
+	if opts.StreamName == "" {
 		log.Fatal("streamName is a required parameter")
 	}
-	return
+	return opts
 }
 
-func uploadFile(fileName, delimiter, streamName, partitionKey string, svc *kinesis.Kinesis) {
+func uploadFile(fileName string, opts Options, svc *kinesis.Kinesis) {
 	handle, err := os.Open(fileName)
 	if err != nil {
 		log.Printf(noSuchFile, fileName)
 		return
 	}
 	defer handle.Close()
-	records := make([]*kinesis.PutRecordsRequestEntry, 0)
 	rdr := bufio.NewReader(handle)
+	putFromReader(rdr, opts, svc)
+}
+
+func putFromReader(rdr *bufio.Reader, opts Options, svc *kinesis.Kinesis) {
+	uploader := NewUploader(svc, opts)
 	for {
-		line, err := rdr.ReadBytes([]byte(delimiter)[0])
+		data, err := rdr.ReadBytes([]byte(opts.Delimiter)[0])
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
-			log.Printf(incompleteRead, fileName)
+			log.Printf(incompleteRead)
 			break
 		}
-		records = append(records, &kinesis.PutRecordsRequestEntry{Data: line, PartitionKey: &partitionKey})
+		uploader.Upload(data)
 	}
-	putRecordsInput := &kinesis.PutRecordsInput{Records: records, StreamName: &streamName}
-	putRecordsOutput, err := svc.PutRecords(putRecordsInput)
-	if err != nil {
-		log.Fatal("Error during put records ", err)
-	}
-
-	if *putRecordsOutput.FailedRecordCount > 0 {
-		log.Printf("%d records failed to upload", putRecordsOutput.FailedRecordCount)
-	}
-
-	log.Printf("Successfully put %d records", int64(len(putRecordsOutput.Records)) - *putRecordsOutput.FailedRecordCount)
+	uploader.Flush()
 }
