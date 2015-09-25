@@ -12,31 +12,45 @@ import (
 )
 
 const (
-	defaultDelimiter    = "\n"
-	delimiterUsage      = "Delimiter to split on (defaults to newline)"
-	defaultProfile      = "default"
-	profileUsage        = "AWS Profile name to use for authentication"
-	defaultPartitionKey = "1"
-	partitionKeyUsage   = "Partition key"
-	defaultRegion       = "us-east-1"
-	regionUsage         = "AWS region, defaults to us-east-1"
-	streamNameUsage     = "Stream name to put data"
-	incompleteRead      = "c2k: incomplete read of stream"
-	noSuchFile          = "c2k: %s: no such file"
+	defaultDelimiter           = "\n"
+	delimiterUsage             = "Delimiter to split on (defaults to newline)"
+	ItrUsage                   = "Type of Shard Iterator to use. Valid choices: AT_SEQUENCE_NUMBER, AFTER_SEQUENCE_NUMBER, TRIM_HORIZON"
+	listenUsage                = "Listen to stream instead of sending data"
+	defaultProfile             = "default"
+	profileUsage               = "AWS Profile name to use for authentication"
+	defaultPartitionKey        = "1"
+	partitionKeyUsage          = "Partition key"
+	defaultRegion              = "us-east-1"
+	regionUsage                = "AWS region, defaults to us-east-1"
+	shardIdUsage			   = "Shard ID for listen purposes"
+	streamNameUsage            = "Stream name to put data"
+	incompleteRead             = "c2k: incomplete read of stream"
+	noSuchFile                 = "c2k: %s: no such file"
+	TrimHorizon         string = "TRIM_HORIZON"
+	AtSequenceNum       string = "AT_SEQUENCE_NUMBER"
+	AfterSequenceNum    string = "AFTER_SEQUENCE_NUMBER"
+	Latest              string = "LATEST"
 )
 
 type Options struct {
-	Delimiter, Profile, Region, StreamName, PartitionKey string
+	Delimiter, Profile, Region, ShardId, StreamName, PartitionKey, ItrType string
 }
 
 func main() {
-	opts := parseArgs()
+	var listen bool
+	opts := parseArgs(&listen)
 
 	svc := createService(opts.Profile, opts.Region)
 
-	for _, fileName := range flag.Args() {
-		uploadFile(fileName, opts, svc)
+	if listen {
+		listener := NewListener(opts, svc)
+		listener.Listen("2", "TRIM_HORIZON", "", os.Stdout)
+	} else {
+		for _, fileName := range flag.Args() {
+			uploadFile(fileName, opts, svc)
+		}
 	}
+
 }
 
 func createService(profile, region string) *kinesis.Kinesis {
@@ -44,21 +58,30 @@ func createService(profile, region string) *kinesis.Kinesis {
 	return kinesis.New(&aws.Config{Region: aws.String(region), Credentials: creds})
 }
 
-func parseArgs() Options {
+func parseArgs(listen *bool) Options {
 	opts := Options{}
 	flag.StringVar(&opts.Delimiter, "delimiter", defaultDelimiter, delimiterUsage)
 	flag.StringVar(&opts.Delimiter, "d", defaultDelimiter, delimiterUsage+" (short)")
+	flag.StringVar(&opts.ItrType, "iter", TrimHorizon, ItrUsage)
+	flag.StringVar(&opts.ItrType, "i", TrimHorizon, ItrUsage+" (short)")
+	flag.BoolVar(listen, "listen", false, listenUsage)
+	flag.BoolVar(listen, "l", false, listenUsage+" (short)")
 	flag.StringVar(&opts.PartitionKey, "partitionKey", defaultPartitionKey, partitionKeyUsage)
 	flag.StringVar(&opts.PartitionKey, "pk", defaultPartitionKey, partitionKeyUsage+" (short)")
 	flag.StringVar(&opts.Profile, "profile", defaultProfile, profileUsage)
 	flag.StringVar(&opts.Profile, "p", defaultProfile, profileUsage+" (short)")
 	flag.StringVar(&opts.Region, "region", defaultRegion, regionUsage)
 	flag.StringVar(&opts.Region, "r", defaultRegion, regionUsage+" (short)")
+	flag.StringVar(&opts.ShardId, "shardId", "", shardIdUsage)
+	flag.StringVar(&opts.ShardId, "sId", "", shardIdUsage+" (short)")
 	flag.StringVar(&opts.StreamName, "streamName", "", streamNameUsage)
 	flag.StringVar(&opts.StreamName, "s", "", streamNameUsage+" (short)")
 	flag.Parse()
 	if opts.StreamName == "" {
 		log.Fatal("streamName is a required parameter")
+	}
+	if *listen && opts.ItrType != TrimHorizon && opts.ItrType != Latest && opts.ItrType != AfterSequenceNum && opts.ItrType != AtSequenceNum {
+		log.Fatal("Invalid iter type given ", opts.ItrType)
 	}
 	return opts
 }
