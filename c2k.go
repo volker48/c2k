@@ -22,7 +22,9 @@ const (
 	partitionKeyUsage          = "Partition key"
 	defaultRegion              = "us-east-1"
 	regionUsage                = "AWS region, defaults to us-east-1"
+	startingSeqNumUsage		   = "Sequence number to use for iterators that use a sequence number"
 	shardIdUsage			   = "Shard ID for listen purposes"
+	defaultShardId		string = "ALL"
 	streamNameUsage            = "Stream name to put data"
 	incompleteRead             = "c2k: incomplete read of stream"
 	noSuchFile                 = "c2k: %s: no such file"
@@ -33,7 +35,7 @@ const (
 )
 
 type Options struct {
-	Delimiter, Profile, Region, ShardId, StreamName, PartitionKey, ItrType string
+	Delimiter, Profile, Region, ShardId, StartingSeqNum, StreamName, PartitionKey, ItrType string
 }
 
 func main() {
@@ -44,7 +46,7 @@ func main() {
 
 	if listen {
 		listener := NewListener(opts, svc)
-		listener.Listen("2", "TRIM_HORIZON", "", os.Stdout)
+		listener.Listen(os.Stdout)
 	} else {
 		for _, fileName := range flag.Args() {
 			uploadFile(fileName, opts, svc)
@@ -72,8 +74,10 @@ func parseArgs(listen *bool) Options {
 	flag.StringVar(&opts.Profile, "p", defaultProfile, profileUsage+" (short)")
 	flag.StringVar(&opts.Region, "region", defaultRegion, regionUsage)
 	flag.StringVar(&opts.Region, "r", defaultRegion, regionUsage+" (short)")
-	flag.StringVar(&opts.ShardId, "shardId", "", shardIdUsage)
-	flag.StringVar(&opts.ShardId, "sId", "", shardIdUsage+" (short)")
+	flag.StringVar(&opts.StartingSeqNum, "startingSeqNum", "", startingSeqNumUsage)
+	flag.StringVar(&opts.StartingSeqNum, "sn", "", startingSeqNumUsage+" (short)")
+	flag.StringVar(&opts.ShardId, "shardId", defaultShardId, shardIdUsage)
+	flag.StringVar(&opts.ShardId, "sId", defaultShardId, shardIdUsage+" (short)")
 	flag.StringVar(&opts.StreamName, "streamName", "", streamNameUsage)
 	flag.StringVar(&opts.StreamName, "s", "", streamNameUsage+" (short)")
 	flag.Parse()
