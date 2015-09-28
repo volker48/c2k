@@ -3,10 +3,10 @@ package main
 import (
 	"github.com/volker48/c2k/Godeps/_workspace/src/github.com/aws/aws-sdk-go/service/kinesis"
 	"io"
-	"time"
 	"log"
 	"os"
 	"os/signal"
+	"time"
 )
 
 type Listener struct {
@@ -45,7 +45,7 @@ func (l *Listener) Listen(wrtr io.Writer) {
 		shards = []*kinesis.Shard{&kinesis.Shard{ShardId: &l.opts.ShardId}}
 	}
 	for _, shard := range shards {
-		go l.followIterator(*shard.ShardId,wrtr)
+		go l.followIterator(*shard.ShardId, wrtr)
 	}
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, os.Kill)

@@ -32,9 +32,13 @@ Usage of ./c2k:
   -s string
     	Stream name to put data (short)
   -sId string
-    	Shard ID for listen purposes (short)
+    	Shard ID for listen purposes (short) (default "ALL")
   -shardId string
-    	Shard ID for listen purposes
+    	Shard ID for listen purposes (default "ALL")
+  -sn string
+    	Sequence number to use for iterators that use a sequence number (short)
+  -startingSeqNum string
+    	Sequence number to use for iterators that use a sequence number
   -streamName string
     	Stream name to put data
 ```
@@ -55,7 +59,7 @@ This will put each line of `access.log` and `error.log` as a record into the Kin
 You can also listen for data in a Kinesis stream. By default c2k will listen to all shards in the stream, but you can specify a single shard id as well.
 
 ```
-c2k -s your-stream -sId 1
+c2k -s your-stream -shardId 1
 ```
 
 This will stream from shard id 1 of the stream named `your-stream`. c2k will write the data from the stream to standard out. By default, c2k will used the `TRIM_HORIZON` type of shard iterator.
