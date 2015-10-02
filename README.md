@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/volker48/c2k.svg)](https://travis-ci.org/volker48/c2k)
+
 # c2k - cat 2 kinesis
 Like `netcat`, but for [Amazon Kinesis](https://aws.amazon.com/kinesis/).
 
