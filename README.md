@@ -61,7 +61,7 @@ This will put each line of `access.log` and `error.log` as a record into the Kin
 You can also listen for data in a Kinesis stream. By default c2k will listen to all shards in the stream, but you can specify a single shard id as well.
 
 ```
-c2k -s your-stream -shardId 1
+c2k -l -s your-stream -shardId 1
 ```
 
 This will stream from shard id 1 of the stream named `your-stream`. c2k will write the data from the stream to standard out. By default, c2k will used the `TRIM_HORIZON` type of shard iterator.
