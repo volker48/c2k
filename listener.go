@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/volker48/c2k/Godeps/_workspace/src/github.com/aws/aws-sdk-go/service/kinesis"
+	"github.com/aws/aws-sdk-go/service/kinesis"
 	"io"
 	"log"
 	"os"

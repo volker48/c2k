@@ -3,9 +3,10 @@ package main
 import (
 	"bufio"
 	"flag"
-	"github.com/volker48/c2k/Godeps/_workspace/src/github.com/aws/aws-sdk-go/aws"
-	"github.com/volker48/c2k/Godeps/_workspace/src/github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/volker48/c2k/Godeps/_workspace/src/github.com/aws/aws-sdk-go/service/kinesis"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/service/firehose"
+	"github.com/aws/aws-sdk-go/service/kinesis"
 	"io"
 	"log"
 	"os"
@@ -36,6 +37,7 @@ const (
 
 type Options struct {
 	Delimiter, Profile, Region, ShardId, StartingSeqNum, StreamName, PartitionKey, ItrType string
+	Firehose                                                                               bool
 }
 
 func main() {
@@ -43,13 +45,13 @@ func main() {
 	opts := parseArgs(&listen)
 
 	svc := createService(opts.Profile, opts.Region)
-
+	fsvc := createFirehoseService(opts.Profile, opts.Region)
 	if listen {
 		listener := NewListener(opts, svc)
 		listener.Listen(os.Stdout)
 	} else {
 		for _, fileName := range flag.Args() {
-			uploadFile(fileName, opts, svc)
+			uploadFile(fileName, opts, svc, fsvc)
 		}
 	}
 
@@ -60,10 +62,16 @@ func createService(profile, region string) *kinesis.Kinesis {
 	return kinesis.New(&aws.Config{Region: aws.String(region), Credentials: creds})
 }
 
+func createFirehoseService(profile, region string) *firehose.Firehose {
+	creds := credentials.NewSharedCredentials("", profile)
+	return firehose.New(&aws.Config{Region: aws.String(region), Credentials: creds})
+}
+
 func parseArgs(listen *bool) Options {
 	opts := Options{}
 	flag.StringVar(&opts.Delimiter, "delimiter", defaultDelimiter, delimiterUsage)
 	flag.StringVar(&opts.Delimiter, "d", defaultDelimiter, delimiterUsage+" (short)")
+	flag.BoolVar(&opts.Firehose, "f", false, "Firehose mode")
 	flag.StringVar(&opts.ItrType, "iter", TrimHorizon, ItrUsage)
 	flag.StringVar(&opts.ItrType, "i", TrimHorizon, ItrUsage+" (short)")
 	flag.BoolVar(listen, "listen", false, listenUsage)
@@ -90,7 +98,7 @@ func parseArgs(listen *bool) Options {
 	return opts
 }
 
-func uploadFile(fileName string, opts Options, svc *kinesis.Kinesis) {
+func uploadFile(fileName string, opts Options, svc *kinesis.Kinesis, fsvc *firehose.Firehose) {
 	handle, err := os.Open(fileName)
 	if err != nil {
 		log.Printf(noSuchFile, fileName)
@@ -98,11 +106,11 @@ func uploadFile(fileName string, opts Options, svc *kinesis.Kinesis) {
 	}
 	defer handle.Close()
 	rdr := bufio.NewReader(handle)
-	putFromReader(rdr, opts, svc)
+	putFromReader(rdr, opts, svc, fsvc)
 }
 
-func putFromReader(rdr *bufio.Reader, opts Options, svc *kinesis.Kinesis) {
-	uploader := NewUploader(svc, opts)
+func putFromReader(rdr *bufio.Reader, opts Options, svc *kinesis.Kinesis, fsvc *firehose.Firehose) {
+	uploader := NewUploader(svc, fsvc, opts)
 	for {
 		data, err := rdr.ReadBytes([]byte(opts.Delimiter)[0])
 		if err == io.EOF {
