@@ -14,10 +14,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/volker48/c2k/Godeps/_workspace/src/github.com/aws/aws-sdk-go/aws"
-	"github.com/volker48/c2k/Godeps/_workspace/src/github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/volker48/c2k/Godeps/_workspace/src/github.com/aws/aws-sdk-go/aws/service"
-	"github.com/volker48/c2k/Godeps/_workspace/src/github.com/aws/aws-sdk-go/internal/protocol/rest"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/internal/protocol/rest"
 )
 
 const (
@@ -64,7 +64,7 @@ type signer struct {
 // Will sign the requests with the service config's Credentials object
 // Signing is skipped if the credentials is the credentials.AnonymousCredentials
 // object.
-func Sign(req *service.Request) {
+func Sign(req *request.Request) {
 	// If the request does not need to be signed ignore the signing of the
 	// request if the AnonymousCredentials object is used.
 	if req.Service.Config.Credentials == credentials.AnonymousCredentials {

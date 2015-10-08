@@ -3,7 +3,7 @@ package credentials
 import (
 	"os"
 
-	"github.com/volker48/c2k/Godeps/_workspace/src/github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 )
 
 var (

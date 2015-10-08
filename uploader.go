@@ -1,29 +1,54 @@
 package main
 
 import (
-	"github.com/volker48/c2k/Godeps/_workspace/src/github.com/aws/aws-sdk-go/service/kinesis"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/firehose"
+	"github.com/aws/aws-sdk-go/service/kinesis"
 	"log"
 )
 
 const MaxPutIdx = 499
 
-type Uploader struct {
+type uploader struct {
 	records  []*kinesis.PutRecordsRequestEntry
 	position int
 	opts     Options
 	svc      *kinesis.Kinesis
 }
 
-func NewUploader(svc *kinesis.Kinesis, opts Options) *Uploader {
-	return &Uploader{
-		records:  make([]*kinesis.PutRecordsRequestEntry, 500),
-		position: 0,
-		opts:     opts,
-		svc:      svc,
-	}
+type firehoseUploader struct {
+	records  []*firehose.Record
+	svc      *firehose.Firehose
+	opts     Options
+	position int
 }
 
-func (upldr *Uploader) Upload(data []byte) {
+type Uploader interface {
+	Upload(date []byte)
+	Flush()
+	shipAndCheck()
+}
+
+func NewUploader(svc *kinesis.Kinesis, fsvc *firehose.Firehose, opts Options) Uploader {
+	if opts.Firehose {
+		return &firehoseUploader{
+			records:  make([]*firehose.Record, 500),
+			position: 0,
+			opts:     opts,
+			svc:      fsvc,
+		}
+	} else {
+		return &uploader{
+			records:  make([]*kinesis.PutRecordsRequestEntry, 500),
+			position: 0,
+			opts:     opts,
+			svc:      svc,
+		}
+	}
+
+}
+
+func (upldr *uploader) Upload(data []byte) {
 	requestEntry := &kinesis.PutRecordsRequestEntry{Data: data, PartitionKey: &upldr.opts.PartitionKey}
 	upldr.records[upldr.position] = requestEntry
 	if upldr.position == MaxPutIdx {
@@ -34,14 +59,48 @@ func (upldr *Uploader) Upload(data []byte) {
 	}
 }
 
-func (upldr *Uploader) Flush() {
+func (fupldr *firehoseUploader) Upload(data []byte) {
+	fupldr.records[fupldr.position] = &firehose.Record{Data: data}
+	if fupldr.position == MaxPutIdx {
+		fupldr.shipAndCheck()
+		fupldr.position = 0
+	} else {
+		fupldr.position++
+	}
+}
+
+func (fupldr *firehoseUploader) shipAndCheck() {
+	params := &firehose.PutRecordBatchInput{DeliveryStreamName: aws.String(fupldr.opts.StreamName)}
+	if fupldr.position == MaxPutIdx {
+		params.Records = fupldr.records
+	} else {
+		params.Records = fupldr.records[:fupldr.position]
+	}
+	resp, err := fupldr.svc.PutRecordBatch(params)
+	if err != nil {
+		log.Fatal("Error during firehose batch put ", err)
+	}
+	if *resp.FailedPutCount > 0 {
+		log.Printf("%d records failed to upload", resp.FailedPutCount)
+	}
+	log.Printf("Successfully put %d record", int64(len(resp.RequestResponses))-*resp.FailedPutCount)
+}
+
+func (fupldr *firehoseUploader) Flush() {
+	if fupldr.position == 0 {
+		return
+	}
+	fupldr.shipAndCheck()
+}
+
+func (upldr *uploader) Flush() {
 	if upldr.position == 0 {
 		return
 	}
 	upldr.shipAndCheck()
 }
 
-func (upldr *Uploader) shipAndCheck() {
+func (upldr *uploader) shipAndCheck() {
 	var records []*kinesis.PutRecordsRequestEntry
 	if upldr.position == MaxPutIdx {
 		records = upldr.records

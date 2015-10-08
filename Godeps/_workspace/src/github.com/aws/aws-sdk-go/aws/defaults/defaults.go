@@ -5,9 +5,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/volker48/c2k/Godeps/_workspace/src/github.com/aws/aws-sdk-go/aws"
-	"github.com/volker48/c2k/Godeps/_workspace/src/github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/volker48/c2k/Godeps/_workspace/src/github.com/aws/aws-sdk-go/aws/credentials/ec2rolecreds"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/credentials/ec2rolecreds"
 )
 
 // DefaultChainCredentials is a Credentials which will find the first available
@@ -35,4 +35,5 @@ var DefaultConfig = aws.NewConfig().
 	WithHTTPClient(http.DefaultClient).
 	WithMaxRetries(aws.DefaultRetries).
 	WithLogger(aws.NewDefaultLogger()).
-	WithLogLevel(aws.LogOff)
+	WithLogLevel(aws.LogOff).
+	WithSleepDelay(time.Sleep)

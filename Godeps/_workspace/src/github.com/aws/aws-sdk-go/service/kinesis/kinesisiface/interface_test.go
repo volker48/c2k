@@ -5,9 +5,9 @@ package kinesisiface_test
 import (
 	"testing"
 
+	"github.com/aws/aws-sdk-go/service/kinesis"
+	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
 	"github.com/stretchr/testify/assert"
-	"github.com/volker48/c2k/Godeps/_workspace/src/github.com/aws/aws-sdk-go/service/kinesis"
-	"github.com/volker48/c2k/Godeps/_workspace/src/github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
 )
 
 func TestInterface(t *testing.T) {

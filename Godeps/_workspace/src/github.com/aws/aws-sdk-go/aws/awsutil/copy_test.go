@@ -7,8 +7,8 @@ import (
 	"io/ioutil"
 	"testing"
 
+	"github.com/aws/aws-sdk-go/aws/awsutil"
 	"github.com/stretchr/testify/assert"
-	"github.com/volker48/c2k/Godeps/_workspace/src/github.com/aws/aws-sdk-go/aws/awsutil"
 )
 
 func ExampleCopy() {
