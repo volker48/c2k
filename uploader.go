@@ -49,7 +49,6 @@ func NewUploader(svc *kinesis.Kinesis, fsvc *firehose.Firehose, opts Options) Up
 }
 
 func (upldr *uploader) Upload(data []byte) {
-	uuid := 
 	requestEntry := &kinesis.PutRecordsRequestEntry{Data: data, PartitionKey: &upldr.opts.PartitionKey}
 	upldr.records[upldr.position] = requestEntry
 	if upldr.position == MaxPutIdx {
