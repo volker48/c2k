@@ -50,9 +50,15 @@ func main() {
 		listener := NewListener(opts, svc)
 		listener.Listen(os.Stdout)
 	} else {
-		for _, fileName := range flag.Args() {
-			uploadFile(fileName, opts, svc, fsvc)
+		if len(flag.Args()) == 0 {
+			uploadFile("-", opts, svc, fsvc)
+
+		} else {
+			for _, fileName := range flag.Args() {
+				uploadFile(fileName, opts, svc, fsvc)
+			}
 		}
+
 	}
 
 }
@@ -99,10 +105,16 @@ func parseArgs(listen *bool) Options {
 }
 
 func uploadFile(fileName string, opts Options, svc *kinesis.Kinesis, fsvc *firehose.Firehose) {
-	handle, err := os.Open(fileName)
-	if err != nil {
-		log.Printf(noSuchFile, fileName)
-		return
+	var handle *os.File
+	var err error
+	if fileName == "-" {
+		handle = os.Stdin
+	} else {
+		handle, err = os.Open(fileName)
+		if err != nil {
+			log.Printf(noSuchFile, fileName)
+			return
+		}
 	}
 	defer handle.Close()
 	rdr := bufio.NewReader(handle)
