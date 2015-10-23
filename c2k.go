@@ -108,6 +108,7 @@ func uploadFile(fileName string, opts Options, svc *kinesis.Kinesis, fsvc *fireh
 	var handle *os.File
 	var err error
 	if fileName == "-" {
+		log.Println("Reading from stdin")
 		handle = os.Stdin
 	} else {
 		handle, err = os.Open(fileName)
@@ -123,6 +124,7 @@ func uploadFile(fileName string, opts Options, svc *kinesis.Kinesis, fsvc *fireh
 
 func putFromReader(rdr *bufio.Reader, opts Options, svc *kinesis.Kinesis, fsvc *firehose.Firehose) {
 	uploader := NewUploader(svc, fsvc, opts)
+	defer uploader.Flush()
 	for {
 		data, err := rdr.ReadBytes([]byte(opts.Delimiter)[0])
 		if err == io.EOF {
@@ -134,5 +136,4 @@ func putFromReader(rdr *bufio.Reader, opts Options, svc *kinesis.Kinesis, fsvc *
 		}
 		uploader.Upload(data)
 	}
-	uploader.Flush()
 }

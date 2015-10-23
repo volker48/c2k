@@ -4,6 +4,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/firehose"
 	"github.com/aws/aws-sdk-go/service/kinesis"
+	"github.com/satori/go.uuid"
 	"log"
 )
 
@@ -48,22 +49,57 @@ func NewUploader(svc *kinesis.Kinesis, fsvc *firehose.Firehose, opts Options) Up
 
 }
 
+const MAX_PAYLOAD = 1000000
+
+func pack(src []byte, dest *[]byte) bool {
+	if len(src)+len(*dest)+1 > MAX_PAYLOAD {
+		return true
+	} else {
+		if len(*dest) > 0 {
+			*dest = append(*dest, '\n')
+		}
+		*dest = append(*dest, src...)
+		return false
+	}
+
+}
+
+func createRecord() *kinesis.PutRecordsRequestEntry {
+	uid := uuid.NewV4().String()
+	return &kinesis.PutRecordsRequestEntry{PartitionKey: &uid}
+}
+
 func (upldr *uploader) Upload(data []byte) {
-	requestEntry := &kinesis.PutRecordsRequestEntry{Data: data, PartitionKey: &upldr.opts.PartitionKey}
-	upldr.records[upldr.position] = requestEntry
-	if upldr.position == MaxPutIdx {
+	if upldr.records[upldr.position] == nil {
+		log.Printf("Records at %d is nil creating new record", upldr.position)
+		upldr.records[upldr.position] = createRecord()
+	}
+	full := pack(data, &upldr.records[upldr.position].Data)
+	if full && upldr.position == MaxPutIdx {
 		upldr.shipAndCheck()
 		upldr.position = 0
-	} else {
+		for i := 0; i < len(upldr.records); i++ {
+			upldr.records[i] = nil
+		}
+	} else if full {
 		upldr.position++
+		record := createRecord()
+		upldr.records[upldr.position] = record
+		pack(data, &record.Data)
 	}
 }
 
 func (fupldr *firehoseUploader) Upload(data []byte) {
-	fupldr.records[fupldr.position] = &firehose.Record{Data: data}
-	if fupldr.position == MaxPutIdx {
+	if fupldr.records[fupldr.position] == nil {
+		fupldr.records[fupldr.position] = &firehose.Record{Data: data}
+	}
+	full := pack(data, &fupldr.records[fupldr.position].Data)
+	if full && fupldr.position == MaxPutIdx {
 		fupldr.shipAndCheck()
 		fupldr.position = 0
+		for i := 0; i < len(fupldr.records); i++ {
+			fupldr.records[i] = nil
+		}
 	} else {
 		fupldr.position++
 	}
@@ -74,7 +110,7 @@ func (fupldr *firehoseUploader) shipAndCheck() {
 	if fupldr.position == MaxPutIdx {
 		params.Records = fupldr.records
 	} else {
-		params.Records = fupldr.records[:fupldr.position]
+		params.Records = fupldr.records[:fupldr.position+1]
 	}
 	resp, err := fupldr.svc.PutRecordBatch(params)
 	if err != nil {
@@ -87,14 +123,14 @@ func (fupldr *firehoseUploader) shipAndCheck() {
 }
 
 func (fupldr *firehoseUploader) Flush() {
-	if fupldr.position == 0 {
+	if fupldr.position == 0 && fupldr.records[fupldr.position] == nil {
 		return
 	}
 	fupldr.shipAndCheck()
 }
 
 func (upldr *uploader) Flush() {
-	if upldr.position == 0 {
+	if upldr.position == 0 && upldr.records[upldr.position] == nil {
 		return
 	}
 	upldr.shipAndCheck()
@@ -105,7 +141,7 @@ func (upldr *uploader) shipAndCheck() {
 	if upldr.position == MaxPutIdx {
 		records = upldr.records
 	} else {
-		records = upldr.records[:upldr.position]
+		records = upldr.records[:upldr.position+1]
 	}
 	putRecordsInput := &kinesis.PutRecordsInput{Records: records, StreamName: &upldr.opts.StreamName}
 	putRecordsOutput, err := upldr.svc.PutRecords(putRecordsInput)
