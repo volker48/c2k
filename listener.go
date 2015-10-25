@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"io"
 	"log"
@@ -84,7 +86,23 @@ func (l *Listener) writeRecords(shardIterator *string, wrtr io.Writer) (recordsO
 		panic(err)
 	}
 	for _, record := range recordsOut.Records {
-		wrtr.Write(record.Data)
+		brdr := bufio.NewScanner(bytes.NewReader(record.Data))
+		for brdr.Scan() {
+			err := brdr.Err()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				log.Fatal("Error reading record data: ", err)
+			}
+			//These lines are for removing
+			data := bytes.TrimSpace(brdr.Bytes())
+			if len(data) == 0 {
+				continue
+			}
+			data = append(data, '\n')
+			wrtr.Write(data)
+		}
 	}
 	return recordsOut
 }
