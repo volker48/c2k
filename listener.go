@@ -95,7 +95,7 @@ func (l *Listener) writeRecords(shardIterator *string, wrtr io.Writer) (recordsO
 			if err != nil {
 				log.Fatal("Error reading record data: ", err)
 			}
-			//These lines are for removing
+			//These lines are for removing blank lines from data payloads
 			data := bytes.TrimSpace(brdr.Bytes())
 			if len(data) == 0 {
 				continue
