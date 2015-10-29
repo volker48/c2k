@@ -51,7 +51,7 @@ Usage of ./c2k:
 c2k operates in two modes. The first mode sends data to Kinesis. The second mode listens or reads data from a Kinesis stream.
 
 ### Firehose
-c2k also supports kinesis firehose. You use the `-f` flag to activate kinesis mode.
+c2k also supports kinesis firehose. You use the `-f` flag to activate firehose mode.
 
 ```
 c2k -s stream-name -f access.log
