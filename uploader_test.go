@@ -2,10 +2,10 @@ package main
 
 import (
 	"bytes"
+	"fmt"
+	"github.com/aws/aws-sdk-go/service/kinesis"
 	"testing"
 	"testing/quick"
-	"github.com/aws/aws-sdk-go/service/kinesis"
-	"fmt"
 )
 
 func TestPack(t *testing.T) {
